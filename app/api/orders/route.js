@@ -4,10 +4,29 @@ import { getDish } from '@/lib/dishes'
 
 export const dynamic = 'force-dynamic'
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': 'https://long-can-guan-cloudflare.netlify.app',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+}
+
+function corsJson(data, init = {}) {
+  return NextResponse.json(data, {
+    ...init,
+    headers: { ...CORS_HEADERS, ...(init.headers || {}) },
+  })
+}
+
+// OPTIONS /api/orders — 跨域预检
+// Netlify 站 https://long-can-guan-cloudflare.netlify.app 跨域调用本接口时，浏览器先发 OPTIONS 预检
+ export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: CORS_HEADERS })
+}
+
 // GET /api/orders — 后厨查单
 export async function GET() {
   const orders = await listOrders(50)
-  return NextResponse.json({ ok: true, orders })
+  return corsJson({ ok: true, orders })
 }
 
 // POST /api/orders — 顾客下单
@@ -25,12 +44,12 @@ export async function POST(req) {
       })
       .filter(Boolean)
     if (items.length === 0) {
-      return NextResponse.json({ ok: false, error: 'empty order' }, { status: 400 })
+      return corsJson({ ok: false, error: 'empty order' }, { status: 400 })
     }
     const order = await createOrder({ items, remark: String(body.remark || '').slice(0, 200) })
-    return NextResponse.json({ ok: true, order })
+    return corsJson({ ok: true, order })
   } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 })
+    return corsJson({ ok: false, error: String(e?.message || e) }, { status: 500 })
   }
 }
 
@@ -41,12 +60,12 @@ export async function PATCH(req) {
     const body = await req.json()
     const status = body.status
     if (!['cooking', 'done'].includes(status)) {
-      return NextResponse.json({ ok: false, error: 'bad status' }, { status: 400 })
+      return corsJson({ ok: false, error: 'bad status' }, { status: 400 })
     }
     const order = await updateOrderStatus(body.id, status)
-    if (!order) return NextResponse.json({ ok: false, error: 'not found' }, { status: 404 })
-    return NextResponse.json({ ok: true, order })
+    if (!order) return corsJson({ ok: false, error: 'not found' }, { status: 404 })
+    return corsJson({ ok: true, order })
   } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 })
+    return corsJson({ ok: false, error: String(e?.message || e) }, { status: 500 })
   }
 }
